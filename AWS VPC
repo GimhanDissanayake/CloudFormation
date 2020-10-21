@@ -1,0 +1,124 @@
+# This Template Create AWS VPC with One Public Subnet and One Private Subnet
+# Resources Created by Stack
+#        > VPC
+#        > Subnet X  2
+#        > Internet Gateway
+#              - Route Table ( Routing Internet Traffic from Public Subnet to Internet Gateway )
+#        > Nat Gateway
+#              - Route Table ( Routing Internet Traffic from Private Subnet to NAT Gateway )
+
+Resources:
+  # Create VPC
+  vpc:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: 10.10.0.0/16
+      Tags:
+        - Key: Name
+          Value: test_vpc
+
+  # Create Public Subnet
+  PubSubnet:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref vpc
+      AvailabilityZone: us-east-1a
+      CidrBlock: 10.10.1.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: test_pub_sn
+
+  # Create Private Subnet
+  PvtSubnet:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref vpc
+      AvailabilityZone: us-east-1a
+      CidrBlock: 10.10.2.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: test_pvt_sn
+
+  # Create Internet Gateway
+  IGW:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+        - Key: Name
+          Value: test_igw
+
+  # Attach InternetGateway to VPC
+  AttachIGW:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref vpc
+      InternetGatewayId: !Ref IGW
+
+  # Create Public Route Table
+  PublicRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref vpc
+      Tags:
+        - Key: Name
+          Value: Public_RT
+
+  # Add Routs to Public Route Table
+  PublicRoute:
+    Type: 'AWS::EC2::Route'
+    DependsOn: AttachIGW
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref IGW
+
+  # Association of Public Public Subnet to Public Route Table
+  PubSubnetRoteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PubSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  # Generate Public Ip for NatGateway
+  NatPublicIP:
+    Type: "AWS::EC2::EIP"
+    DependsOn: vpc
+    Properties:
+      Domain: vpc
+
+  # Create NatGateway
+  NatGateway:
+    Type: "AWS::EC2::NatGateway"
+    DependsOn: NatPublicIP
+    Properties:
+      AllocationId: !GetAtt NatPublicIP.AllocationId
+      SubnetId: !Ref PubSubnet
+      Tags:
+        - Key: Name
+          Value: Test_NatGateway
+
+  # Create Private Route Table
+  PrivateRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref vpc
+      Tags:
+        - Key: Name
+          Value: Private_RT
+
+  # Add Routes to Private Route Table
+  PrivateRoute:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  # Association of Private Subnet to Private Route Table
+  PrivateSubnet1RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PvtSubnet
+      RouteTableId: !Ref PrivateRouteTable
