@@ -1,0 +1,14 @@
+# To log in to aws cli
+aws configure 
+
+# Get details of ec2 instance 
+aws ec2 describe-instances
+
+# List instance ID
+aws ec2 describe-instances --filters --query "Reservations[].Instances[].InstanceId"
+
+# start an ec2
+aws ec2 start-instances --instance-ids i-0a45875a365d57e0a
+
+# stop an ec2
+aws ec2 stop-instances --instance-ids i-0a45875a365d57e0a
